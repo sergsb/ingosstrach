@@ -3,22 +3,20 @@ import Text.Parsec.String
 import Text.Parsec.Token
 import Text.Parsec.Expr
 import Text.Parsec.Language
-import qualified Data.Map as M
 import qualified Control.Monad.State as S
 import Control.Monad.Error	
 import Control.Monad.Identity
 import Data.List
 import System.Environment
 
-
-def = emptyDef { identStart  = letter
+grammar = emptyDef { identStart  = letter
                , identLetter = letter 
                , opStart     = oneOf "+-*/="
                , opLetter    = oneOf "+-*/="
                }
 
 lexer :: TokenParser ()
-lexer = makeTokenParser def
+lexer = makeTokenParser grammar
 
 data Expression = Terminal String
                 | Addition Expression Expression
@@ -28,9 +26,7 @@ data Expression = Terminal String
                 deriving Show
 
 parseString :: Parser Expression
-parseString = do
-    v <- many1 letter
-    return $ Terminal $ v
+parseString =  many1 letter >>= return.Terminal
 
 parseExpression :: Parser Expression
 parseExpression = (flip buildExpressionParser) parseTerm [
@@ -43,8 +39,7 @@ parseExpression = (flip buildExpressionParser) parseTerm [
  ]
 
 parseTerm :: Parser Expression
-parseTerm = parens lexer parseExpression 
-        <|> parseString
+parseTerm = parens lexer parseExpression <|> parseString
 
 parseInput :: Parser Expression
 parseInput = do
@@ -53,13 +48,10 @@ parseInput = do
     eof
     return ex
 
+type Evaluator a = S.StateT () (ErrorT String Identity) a
 
-type SymTab = M.Map String String
-
-type Evaluator a = S.StateT SymTab (ErrorT String Identity) a
-
-runEvaluator :: Evaluator String -> SymTab -> Either String (String, SymTab)
-runEvaluator calc symTab = runIdentity $ runErrorT $ S.runStateT calc symTab
+runEvaluator :: Evaluator String -> Either String (String, ())
+runEvaluator calc = runIdentity $ runErrorT $ S.runStateT calc ()
 
 eval :: Expression -> Evaluator String
 
@@ -94,19 +86,16 @@ recursiveDel' (f_l:[]) (f_r:rgt) str = str ++ [f_l]
 recursiveDel' s [] str = reverse str ++ s
 
 
-defaultVars :: M.Map String String
-defaultVars = M.empty
-
-calculate :: SymTab -> String -> (String, SymTab)
-calculate symTab s = 
+calculate :: String -> String
+calculate s = 
     case parse parseInput "" s of
-    Left  err -> ("error: " ++ (show err), symTab)
-    Right exp -> case runEvaluator (eval exp) symTab of
-                 Left  err              -> ("error: " ++ err, symTab)
-                 Right (val, newSymTab) -> (show val, newSymTab)
+    Left  err -> "error: " ++ (show err)
+    Right exp -> case runEvaluator (eval exp) of
+                 Left  err -> "error: " ++ err
+                 Right (val, ()) -> show val
 
   
 main = do
     line <- fmap head $ getArgs
-    let (result, _) = calculate defaultVars line
+    let result = calculate line
     putStrLn result
