@@ -4,10 +4,10 @@ This is the solution for Ingosstrach enterance challenge. It is written on pure 
 
 To build program, install GHC (on Ubuntu `apt install haskell-platform`)
 
-##Build program: 
+## Build program: 
 `ghc -o strach ingosstrach.hs`
 
-##Run program: 
+## Run program: 
 `./strach "((index-ex)-d)+gst*osr+(an+k+oh)/(n+o)"`
 
 `ingosstrakh`
